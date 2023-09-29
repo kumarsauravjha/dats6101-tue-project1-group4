@@ -10,3 +10,10 @@ Repository for group 4 in Tuesday class of Intro to Data Science project
 
 ## Directory Structure
 There are two directories in this project right now `dataset` and `code`. `dataset` will contain the .csv or any other type of file we are using to keep the data. and `code` will contain the RMarkdown and generated HTML files.
+
+## Opening this project in R studio
+1. Open RStudio
+2. Click on "File" -> "Open Project..."
+3. Navigate to the folder where this repo is synced.
+4. Click on "dats6101-tue-project1-group4.Rproj" and open.
+5. RStudio will open this project with git initialized. You can create branches, commit changes, sync etc. through RStudio.
