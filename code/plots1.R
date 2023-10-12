@@ -1,6 +1,6 @@
 
 
-nfl_players_clean=read.csv("C:/Users/HP/Documents/GitHub/dats6101-tue-project1-group4/dataset/nfl_players_clean.csv")
+nfl_players_clean=read.csv("dataset/nfl_players_clean.csv")
 head(nfl_players_clean)
 summary(nfl_players_clean)
 
