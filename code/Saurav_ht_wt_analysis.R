@@ -27,8 +27,8 @@ anova_model_wt <- aov(nfl$weight~nfl$position_group)
 anova_summ_wt <- summary(anova_model_wt)
 p_val_wt <- anova_summ_wt[[1]]$`Pr(>F)`[1]
 
-cat("H0: The mean height is same across different position groups")
-cat("\nH1: The mean height is not same across different position groups")
+cat("H0: The mean weight is same across different position groups")
+cat("\nH1: The mean weight is not same across different position groups")
 
 if (p_val_wt < 0.05) {
   cat("\nBased on the ANOVA test, we reject the null hypothesis.\n")
