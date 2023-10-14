@@ -1,6 +1,10 @@
 
 
 nfl_players_clean=read.csv("dataset/nfl_players_clean.csv")
+nfl_players_clean$position_group = as.factor(nfl_players_clean$position_group)
+nfl_players_clean$position = as.factor(nfl_players_clean$position)
+nfl_players_clean$team_abbr = as.factor(nfl_players_clean$team_abbr)
+nfl_players_clean$entry_year = as.factor(nfl_players_clean$entry_year)
 head(nfl_players_clean)
 summary(nfl_players_clean)
 
@@ -69,10 +73,10 @@ avgh<-data_summary <- nfl_players_clean %>%
     group_by(entry_year) %>%
     summarize(mean_height = mean(height))
   
-  ggplot(data_summary, aes(x = factor(entry_year), y = mean_height)) +
+print(ggplot(data_summary, aes(x = factor(entry_year), y = mean_height)) +
     geom_bar(stat = "identity", fill = "blue") +
     labs(x = "Entry Year", y = "Mean Height") +
-    ggtitle("Mean Height per Entry Year")
+    ggtitle("Mean Height per Entry Year"))
   
 print(avgh)
 
@@ -81,10 +85,10 @@ avgw<- data_summary <- nfl_players_clean %>%
     group_by(entry_year) %>%
     summarize(mean_weight = mean(weight))
   
-  ggplot(data_summary, aes(x = factor(entry_year), y = mean_weight)) +
+print(ggplot(data_summary, aes(x = factor(entry_year), y = mean_weight)) +
     geom_bar(stat = "identity", fill = "red") +
     labs(x = "Entry Year", y = "Mean Height") +
-    ggtitle("Mean weight per Entry Year")
+    ggtitle("Mean weight per Entry Year"))
 print(avgw)
   
 
