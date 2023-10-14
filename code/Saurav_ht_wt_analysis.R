@@ -43,7 +43,7 @@ my_colors <- c("red", "blue", "green", "purple", "orange", "pink", "cyan", "brow
 #
 height_plot <- ggplot(nfl, aes(x = position_group, y = height)) +
   geom_boxplot(fill=my_colors,show.legend = FALSE, outlier.color = "red", width = 0.5) +
-  scale_fill_manual(values = c(custom_palette, "gray")) +  # Add a color for "Other"
+  scale_fill_manual(values = c(my_colors, "gray")) +  # Add a color for "Other"
   labs(title = "Distribution of Height by Position Group",
        x = "Position Group",
        y = "Height") +
@@ -59,7 +59,7 @@ print(height_plot)
 #
 weight_plot <- ggplot(nfl, aes(x = position_group, y = weight)) +
   geom_boxplot(fill=my_colors,show.legend = FALSE, outlier.color = "red", width = 0.5) +
-  scale_fill_manual(values = c(custom_palette, "gray")) +  # Add a color for "Other"
+  scale_fill_manual(values = c(my_colors, "gray")) +  # Add a color for "Other"
   labs(title = "Distribution of Weight by Position Group",
        x = "Position Group",
        y = "Weight") +
