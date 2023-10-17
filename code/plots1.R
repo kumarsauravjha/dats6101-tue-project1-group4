@@ -1,16 +1,11 @@
-
+library(ggplot2)
+library(dplyr)
 
 nfl_players_clean=read.csv("dataset/nfl_players_clean.csv")
 nfl_players_clean$position_group = as.factor(nfl_players_clean$position_group)
 nfl_players_clean$position = as.factor(nfl_players_clean$position)
 nfl_players_clean$team_abbr = as.factor(nfl_players_clean$team_abbr)
 nfl_players_clean$entry_year = as.factor(nfl_players_clean$entry_year)
-head(nfl_players_clean)
-summary(nfl_players_clean)
-
-library(ggplot2)
-
-
 
 # Create a histogram for the "Weight" variable
 histw<-ggplot(nfl_players_clean, aes(x = weight)) +
@@ -18,6 +13,13 @@ histw<-ggplot(nfl_players_clean, aes(x = weight)) +
   labs(title = "Distribution of Player Weights", x = "Weight (lbs)", y = "Frequency")
 print(histw)
 
+boxw <- ggplot(nfl_players_clean) +
+  geom_boxplot(aes(y=weight), fill="skyblue", color="black") +
+  labs(title = "Boxplot of Player Weights", y = "Player weights (lbs)")
+print(boxw)
+
+qqnorm(nfl_players_clean$weight, main = "Q-Q plot of player weights")
+qqline(nfl_players_clean$weight, col="steelblue")
 
 # Create a histogram for the "Height" variable
 histh<-ggplot(nfl_players_clean, aes(x = height)) +
@@ -25,11 +27,18 @@ histh<-ggplot(nfl_players_clean, aes(x = height)) +
   labs(title = "Distribution of Player Heights", x = "Height (inches)", y = "Frequency")
 print(histh)
 
+boxh <- ggplot(nfl_players_clean) +
+  geom_boxplot(aes(y=height), fill="lightcoral", color="black") +
+  labs(title = "Boxplot of Player Heights", y = "Player heights (inches)")
+print(boxh)
+
+qqnorm(nfl_players_clean$height, main = "Q-Q plot of player heights")
+qqline(nfl_players_clean$height, col="steelblue")
 
 #create a bar plot for player positions
 gg1<-ggplot(nfl_players_clean, aes(x = position_group)) +
   geom_bar(fill = "orange") +
-  labs(title = "Position Distribution")
+  labs(title = "Number of players in each position", x="Position Group", y="No. of players")
 print(gg1)
 
 
@@ -67,7 +76,6 @@ sca3<-ggplot(nfl_players_clean, aes(x = entry_year, y = weight)) +
   ggtitle("weight vs. Entry Year")
 print(sca3)
 
-  library(dplyr)
 #Bar plot for average height per year
 avgh<-data_summary <- nfl_players_clean %>%
     group_by(entry_year) %>%
@@ -77,8 +85,6 @@ print(ggplot(data_summary, aes(x = factor(entry_year), y = mean_height)) +
     geom_bar(stat = "identity", fill = "blue") +
     labs(x = "Entry Year", y = "Mean Height") +
     ggtitle("Mean Height per Entry Year"))
-  
-print(avgh)
 
   #Bar plot for average weight per year
 avgw<- data_summary <- nfl_players_clean %>%
@@ -89,15 +95,5 @@ print(ggplot(data_summary, aes(x = factor(entry_year), y = mean_weight)) +
     geom_bar(stat = "identity", fill = "red") +
     labs(x = "Entry Year", y = "Mean Height") +
     ggtitle("Mean weight per Entry Year"))
-print(avgw)
-  
-
-
-
-
-
-
-
-
 
 
