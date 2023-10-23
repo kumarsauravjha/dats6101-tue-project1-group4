@@ -28,8 +28,8 @@ plt3 <- ggplot(nfl_data) +
   labs(x = "Position Group", y = "Years of experience")
 
 #QQ plot for YOE
-qqnorm(nfl_players_clean$height, main = "Q-Q plot of Years of experience")
-qqline(nfl_players_clean$height, col="steelblue")
+qqnorm(nfl_data$height, main = "Q-Q plot of Years of experience")
+qqline(nfl_data$height, col="steelblue")
 
 
 print(plt1)
