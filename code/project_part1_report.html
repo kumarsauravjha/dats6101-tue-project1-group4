@@ -2016,7 +2016,31 @@ First, we group the dataset by position group and calculate the average
 weight, height, and YOE for each position group.</p>
 <pre class="r"><code>grouped_nfl_players &lt;- group_by(nfl_data_clean, position_group)
 
-nfl_players_by_position &lt;- summarize(grouped_nfl_players,average_height = mean(height),average_weight = mean(weight), average_years_active = mean(years_of_experience))</code></pre>
+nfl_players_by_position &lt;- summarize(grouped_nfl_players,average_height = mean(height),sd_height =sd(height), average_weight = mean(weight), sd_weight = sd(weight), average_years_active = mean(years_of_experience), sd_yoe = sd(years_of_experience))</code></pre>
+<p>Based on feedback during the presentation that ANOVA tests assume
+equality of standard deviation, we decided to include a summary of mean
+and SD for weight, height and YOE for each position group.<br />
+</p>
+<pre class="r"><code>nfl_players_by_position</code></pre>
+<pre><code>## # A tibble: 9 × 7
+##   position_group average_height sd_height average_weight sd_weight
+##   &lt;fct&gt;                   &lt;dbl&gt;     &lt;dbl&gt;          &lt;dbl&gt;     &lt;dbl&gt;
+## 1 DB                       72.0      1.61           197.      11.1
+## 2 DL                       75.4      1.53           289.      26.3
+## 3 LB                       74.1      1.62           240.      14.0
+## 4 OL                       76.9      1.56           312.      13.3
+## 5 QB                       75.0      1.66           221.      11.1
+## 6 RB                       71.1      1.87           217.      18.5
+## 7 SPEC                     73.4      2.24           215.      23.3
+## 8 TE                       76.6      1.40           250.      11.0
+## 9 WR                       72.8      2.34           199.      15.0
+## # ℹ 2 more variables: average_years_active &lt;dbl&gt;, sd_yoe &lt;dbl&gt;</code></pre>
+<p>From the above summary table we can see that SD for height for most
+groups is close by. The weight SD varies for all position groups and is
+approximately equal for only a few groups. The SD of the YOE variable is
+also approximately equal for most groups but the QB and SPEC
+positions.<br />
+</p>
 <div id="height-1" class="section level2">
 <h2>Height</h2>
 <pre class="r"><code>ggplot(nfl_players_by_position, aes(x = position_group, y = average_height)) +
@@ -2120,6 +2144,57 @@ NA
 reject the null hypothesis and accept the alternate. As expected, the
 distribution of player’s height varies based on the position
 group.</strong><br />
+To check which position groups vary the most in mean height, we perform
+the post-hoc Tukey HSD test:<br />
+</p>
+<pre class="r"><code>pos_height_tukey &lt;- TukeyHSD(anova_model_ht)
+print(pos_height_tukey)</code></pre>
+<pre><code>##   Tukey multiple comparisons of means
+##     95% family-wise confidence level
+## 
+## Fit: aov(formula = height ~ position_group, data = nfl_data_clean)
+## 
+## $position_group
+##           diff    lwr     upr p adj
+## DL-DB    3.432  3.205  3.6583 0.000
+## LB-DB    2.097  1.869  2.3242 0.000
+## OL-DB    4.881  4.664  5.0985 0.000
+## QB-DB    2.960  2.591  3.3297 0.000
+## RB-DB   -0.939 -1.208 -0.6697 0.000
+## SPEC-DB  1.384  1.027  1.7409 0.000
+## TE-DB    4.568  4.278  4.8577 0.000
+## WR-DB    0.774  0.547  1.0019 0.000
+## LB-DL   -1.335 -1.579 -1.0912 0.000
+## OL-DL    1.450  1.216  1.6838 0.000
+## QB-DL   -0.471 -0.851 -0.0917 0.004
+## RB-DL   -4.370 -4.654 -4.0874 0.000
+## SPEC-DL -2.048 -2.415 -1.6802 0.000
+## TE-DL    1.137  0.834  1.4390 0.000
+## WR-DL   -2.657 -2.901 -2.4135 0.000
+## OL-LB    2.785  2.550  3.0196 0.000
+## QB-LB    0.864  0.484  1.2437 0.000
+## RB-LB   -3.036 -3.319 -2.7518 0.000
+## SPEC-LB -0.713 -1.081 -0.3447 0.000
+## TE-LB    2.472  2.168  2.7746 0.000
+## WR-LB   -1.322 -1.566 -1.0777 0.000
+## QB-OL   -1.921 -2.295 -1.5470 0.000
+## RB-OL   -5.820 -6.096 -5.5447 0.000
+## SPEC-OL -3.497 -3.859 -3.1356 0.000
+## TE-OL   -0.313 -0.609 -0.0177 0.028
+## WR-OL   -4.107 -4.342 -3.8719 0.000
+## RB-QB   -3.899 -4.306 -3.4928 0.000
+## SPEC-QB -1.576 -2.046 -1.1072 0.000
+## TE-QB    1.608  1.188  2.0280 0.000
+## WR-QB   -2.186 -2.566 -1.8058 0.000
+## SPEC-RB  2.323  1.928  2.7180 0.000
+## TE-RB    5.507  5.172  5.8426 0.000
+## WR-RB    1.713  1.430  1.9971 0.000
+## TE-SPEC  3.184  2.775  3.5936 0.000
+## WR-SPEC -0.609 -0.977 -0.2414 0.000
+## WR-TE   -3.794 -4.097 -3.4906 0.000</code></pre>
+<p><strong>From the post-hoc Tukey HSD test we see that the p-values for
+all pairs are less than 0.05 which means all the pairs of position
+groups have different mean heights</strong><br />
 </p>
 </div>
 <div id="weight-1" class="section level2">
@@ -2223,6 +2298,58 @@ NA
 reject the null hypothesis and accept the alternate. As expected, the
 distribution of player’s weight varies based on the position
 group.</strong><br />
+To check which position groups vary the most in mean height, we perform
+the post-hoc Tukey HSD test:<br />
+</p>
+<pre class="r"><code>pos_weight_tukey &lt;- TukeyHSD(anova_model_wt)
+print(pos_weight_tukey)</code></pre>
+<pre><code>##   Tukey multiple comparisons of means
+##     95% family-wise confidence level
+## 
+## Fit: aov(formula = weight ~ position_group, data = nfl_data_clean)
+## 
+## $position_group
+##            diff      lwr      upr p adj
+## DL-DB     92.27   90.142   94.403 0.000
+## LB-DB     42.82   40.681   44.958 0.000
+## OL-DB    115.08  113.039  117.122 0.000
+## QB-DB     23.51   20.040   26.982 0.000
+## RB-DB     19.53   17.000   22.061 0.000
+## SPEC-DB   17.38   14.025   20.735 0.000
+## TE-DB     52.62   49.900   55.342 0.000
+## WR-DB      1.56   -0.573    3.701 0.360
+## LB-DL    -49.45  -51.743  -47.163 0.000
+## OL-DL     22.81   20.608   25.008 0.000
+## QB-DL    -68.76  -72.328  -65.195 0.000
+## RB-DL    -72.74  -75.401  -70.082 0.000
+## SPEC-DL  -74.89  -78.346  -71.439 0.000
+## TE-DL    -39.65  -42.493  -36.810 0.000
+## WR-DL    -90.71  -92.997  -88.420 0.000
+## OL-LB     72.26   70.054   74.468 0.000
+## QB-LB    -19.31  -22.880  -15.738 0.000
+## RB-LB    -23.29  -25.955  -20.623 0.000
+## SPEC-LB  -25.44  -28.898  -21.982 0.000
+## TE-LB      9.80    6.954   12.649 0.000
+## WR-LB    -41.26  -43.551  -38.959 0.000
+## QB-OL    -91.57  -95.084  -88.056 0.000
+## RB-OL    -95.55  -98.139  -92.961 0.000
+## SPEC-OL  -97.70 -101.100  -94.302 0.000
+## TE-OL    -62.46  -65.235  -59.684 0.000
+## WR-OL   -113.52 -115.722 -111.310 0.000
+## RB-QB     -3.98   -7.799   -0.161 0.033
+## SPEC-QB   -6.13  -10.539   -1.722 0.001
+## TE-QB     29.11   25.163   33.058 0.000
+## WR-QB    -21.95  -25.517  -18.376 0.000
+## SPEC-RB   -2.15   -5.864    1.562 0.684
+## TE-RB     33.09   29.938   36.243 0.000
+## WR-RB    -17.97  -20.631  -15.302 0.000
+## TE-SPEC   35.24   31.395   39.087 0.000
+## WR-SPEC  -15.82  -19.273  -12.358 0.000
+## WR-TE    -51.06  -53.904  -48.210 0.000</code></pre>
+<p><strong>From the post-hoc Tukey HSD test we see that the p-values for
+all pairs except “WR-DB” and “SPEC-RB” are less than 0.05 which means
+all other pairs of position groups have different mean
+weights</strong><br />
 </p>
 </div>
 <div id="years-of-experience-1" class="section level2">
@@ -2320,8 +2447,73 @@ NA
 reject the null hypothesis and accept the alternate. As expected, the
 distribution of player’s YOE varies based on the position
 group.</strong><br />
+To check which position groups vary the most in mean height, we perform
+the post-hoc Tukey HSD test:<br />
+</p>
+<pre class="r"><code>pos_yoe_tukey &lt;- TukeyHSD(pos_yoe)
+print(pos_yoe_tukey)</code></pre>
+<pre><code>##   Tukey multiple comparisons of means
+##     95% family-wise confidence level
+## 
+## Fit: aov(formula = years_of_experience ~ position_group, data = nfl_data_clean)
+## 
+## $position_group
+##            diff    lwr     upr p adj
+## DL-DB    0.2447 -0.200  0.6898 0.743
+## LB-DB    0.0823 -0.364  0.5291 1.000
+## OL-DB    0.1567 -0.270  0.5832 0.968
+## QB-DB    1.4800  0.755  2.2052 0.000
+## RB-DB   -0.1310 -0.660  0.3977 0.998
+## SPEC-DB  1.7417  1.041  2.4425 0.000
+## TE-DB    0.0176 -0.551  0.5861 1.000
+## WR-DB   -0.6067 -1.053 -0.1602 0.001
+## LB-DL   -0.1624 -0.641  0.3160 0.980
+## OL-DL   -0.0880 -0.548  0.3715 1.000
+## QB-DL    1.2353  0.490  1.9804 0.000
+## RB-DL   -0.3757 -0.931  0.1799 0.475
+## SPEC-DL  1.4970  0.776  2.2184 0.000
+## TE-DL   -0.2270 -0.821  0.3666 0.959
+## WR-DL   -0.8514 -1.329 -0.3733 0.000
+## OL-LB    0.0744 -0.387  0.5355 1.000
+## QB-LB    1.3977  0.652  2.1437 0.000
+## RB-LB   -0.2133 -0.770  0.3436 0.959
+## SPEC-LB  1.6594  0.937  2.3818 0.000
+## TE-LB   -0.0647 -0.660  0.5302 1.000
+## WR-LB   -0.6890 -1.169 -0.2094 0.000
+## QB-OL    1.3233  0.589  2.0574 0.000
+## RB-OL   -0.2877 -0.829  0.2532 0.777
+## SPEC-OL  1.5850  0.875  2.2951 0.000
+## TE-OL   -0.1391 -0.719  0.4408 0.998
+## WR-OL   -0.7634 -1.224 -0.3025 0.000
+## RB-QB   -1.6110 -2.409 -0.8132 0.000
+## SPEC-QB  0.2617 -0.659  1.1826 0.994
+## TE-QB   -1.4624 -2.287 -0.6377 0.000
+## WR-QB   -2.0867 -2.833 -1.3408 0.000
+## SPEC-RB  1.8727  1.097  2.6484 0.000
+## TE-RB    0.1486 -0.510  0.8072 0.999
+## WR-RB   -0.4757 -1.032  0.0810 0.166
+## TE-SPEC -1.7240 -2.527 -0.9206 0.000
+## WR-SPEC -2.3484 -3.071 -1.6261 0.000
+## WR-TE   -0.6243 -1.219 -0.0296 0.031</code></pre>
+<p><strong>From the post-hoc Tukey HSD test we see that the p-values for
+all pairs except “WR-DB” and “SPEC-RB” are less than 0.05 which means
+all other pairs of position groups have different mean
+weights</strong><br />
 </p>
 </div>
+</div>
+<div id="conclusions" class="section level1">
+<h1>Conclusions</h1>
+<p>From the statistical summaries, plots and hypothesis tests performed
+using R, we can determine that height, weight and years of experience
+vary significantly based on position groups.<br />
+Based on the EDA, we aim to perform one or more of the following
+modelling tasks for part 2:<br />
+1. Classifier model to classify a player into position group based on
+their height and weight.<br />
+2. Regression model to predict a player’s YOE based on height, weight
+and position group.<br />
+</p>
 </div>
 
 

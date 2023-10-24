@@ -142,8 +142,15 @@ First, we group the dataset by position group and calculate the average weight, 
 ```{r group_by_position}
 grouped_nfl_players <- group_by(nfl_data_clean, position_group)
 
-nfl_players_by_position <- summarize(grouped_nfl_players,average_height = mean(height),average_weight = mean(weight), average_years_active = mean(years_of_experience))
+nfl_players_by_position <- summarize(grouped_nfl_players,average_height = mean(height),sd_height =sd(height), average_weight = mean(weight), sd_weight = sd(weight), average_years_active = mean(years_of_experience), sd_yoe = sd(years_of_experience))
 ```
+
+Based on feedback during the presentation that ANOVA tests assume equality of standard deviation, we decided to include a summary of mean and SD for weight, height and YOE for each position group.\
+```{r summarize_groups}
+nfl_players_by_position
+```
+
+From the above summary table we can see that SD for height for most groups is close by. The weight SD varies for all position groups and is approximately equal for only a few groups. The SD of the YOE variable is also approximately equal for most groups but the QB and SPEC positions.\
 
 ## Height
 
@@ -177,6 +184,13 @@ xkabledply(anova_model_ht, title="ANOVA test Height vs Position Group")
 ```
 
 **The p-value from the ANOVA test is 0 which means that we reject the null hypothesis and accept the alternate. As expected, the distribution of player's height varies based on the position group.**\
+To check which position groups vary the most in mean height, we perform the post-hoc Tukey HSD test:\
+```{r tukeyHSD_height_pos_group}
+pos_height_tukey <- TukeyHSD(anova_model_ht)
+print(pos_height_tukey)
+```
+
+**From the post-hoc Tukey HSD test we see that the p-values for all pairs are less than 0.05 which means all the pairs of position groups have different mean heights**\
 
 ## Weight
 
@@ -208,6 +222,13 @@ xkabledply(anova_model_wt, title="ANOVA test Weight vs Position Group")
 ```
 
 **The p-value from the ANOVA test is 0 which means that we reject the null hypothesis and accept the alternate. As expected, the distribution of player's weight varies based on the position group.**\
+To check which position groups vary the most in mean height, we perform the post-hoc Tukey HSD test:\
+```{r tukeyHSD_weight_pos_group}
+pos_weight_tukey <- TukeyHSD(anova_model_wt)
+print(pos_weight_tukey)
+```
+
+**From the post-hoc Tukey HSD test we see that the p-values for all pairs except "WR-DB" and "SPEC-RB" are less than 0.05 which means all other pairs of position groups have different mean weights**\
 
 ## Years of Experience
 
@@ -232,3 +253,16 @@ xkabledply(pos_yoe, title = "ANOVA test YOE vs Position Group")
 ```
 
 **The p-value from the ANOVA test is 0 which means that we reject the null hypothesis and accept the alternate. As expected, the distribution of player's YOE varies based on the position group.**\
+To check which position groups vary the most in mean height, we perform the post-hoc Tukey HSD test:\
+```{r tukeyHSD_yoe_pos_group}
+pos_yoe_tukey <- TukeyHSD(pos_yoe)
+print(pos_yoe_tukey)
+```
+
+**From the post-hoc Tukey HSD test we see that the p-value for almost 50% of the pairs is greater than 0.05. Most of the pairs for which the p-value is less than 0.05 contain either QB, SPEC, or WR position groups. From the earlier bar chart, we can see that QB and SPEC have the highest mean YOE while WR has the lowest mean YOE. We can infer that QB, SPEC and WR positions are the groups causing a low p-value in the ANOVA test.**\
+
+# Conclusions
+From the statistical summaries, plots and hypothesis tests performed using R, we can determine that height, weight and years of experience vary significantly based on position groups.\
+Based on the EDA, we aim to perform one or more of the following modelling tasks for part 2:\
+1. Classifier model to classify a player into position group based on their height and weight.\
+2. Regression model to predict a player's YOE based on height, weight and position group.\
