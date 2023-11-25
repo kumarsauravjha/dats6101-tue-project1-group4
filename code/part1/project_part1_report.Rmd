@@ -1,0 +1,268 @@
+---
+title: "Project 1: Physical Attributes of NFL players"
+author: "Group 4, Section 11"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    code_folding: hide
+    number_sections: false
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+---
+
+```{r init, include=FALSE}
+#Import required libraries
+library(ezids)
+library(ggplot2)
+library(dplyr)
+
+#Setup knitter options
+knitr::opts_chunk$set(warning = F, message = F)
+options(scientific=T, digits = 3)
+```
+
+# Introduction
+## About the Project
+**In an NFL game, each team has 11 players on the field at any given point in time. While the offensive team tries to advance the ball and score a touch down, the defensive team tries to stop them and win possession of the ball. Each team has different players for offense and defense known as "rotations" and both rotations have different positions with specific roles.**\
+**Our objective in this project is to study the physical characteristics of players in relation to their position of play. In particular, we focus on the height and weight distributions of the players. Additionally, we are interested in studying the years of experience (YOE) of players to determine their "longevity" in the league. In a sport as physical as NFL, frequent injuries take a toll on the body and end up reducing a player's tenure. We are interested to use the YOE to determine which positions tend to have players staying longer in the league.**\
+
+## About the dataset
+**For this project, we have selected this [NFLverse dataset](https://github.com/nflverse/nflverse-data/releases/download/players/players.csv) from GitHub. The dataset contains information about players who have entered and played in the NFL from 1980s to 2023.**
+
+```{r import_dataset}
+nfl_data = read.csv("../dataset/nfl_players.csv")
+```
+
+This dataset contains `r nrow(nfl_data)` observations of `r ncol(nfl_data)` variables. Out of these observations, `r sum(is.na(nfl_data))` rows contain null values.
+
+## Cleaning the dataset
+For our project, we are only interested in some of the variables and we will only focus on players who have entered the league from 2000-2023.
+
+```{r clean_data}
+nfl_data = nfl_data[, c("position_group", "position", "height", "weight", "years_of_experience", "team_abbr", "entry_year", "rookie_year")]
+nfl_data_clean = na.omit(nfl_data)
+nfl_data_clean = subset(nfl_data_clean, nfl_data_clean$entry_year >= 2000)
+```
+
+**After cleaning, we are left with `r nrow(nfl_data_clean)` observations of `r ncol(nfl_data_clean)` variables.**
+
+```{r save_data}
+write.csv(nfl_data_clean, "../dataset/nfl_players_clean.csv", row.names = F)
+```
+
+## Factorize and summarize the cleaned data
+```{r factorize}
+nfl_data_clean$position_group = as.factor(nfl_data_clean$position_group)
+nfl_data_clean$position = as.factor(nfl_data_clean$position)
+nfl_data_clean$team_abbr = as.factor(nfl_data_clean$team_abbr)
+nfl_data_clean$entry_year = as.factor(nfl_data_clean$entry_year)
+nfl_data_clean$rookie_year = as.factor(nfl_data_clean$rookie_year)
+```
+
+**There are a total of `r nrow(nfl_data_clean)` players in the dataset, playing in `r length(levels(nfl_data_clean$position))` different positions grouped into `r length(levels(nfl_data_clean$position_group))` different position groups.**
+
+```{r summarize}
+summary(nfl_data_clean, maxsum = 40)
+```
+
+# Diving into each variable
+After cleaning up the dataset and looking at the summary, we shift our focus to analyzing the distribution for each variable.
+
+## Position group
+**There are `r length(levels(nfl_data_clean$position_group))` different position groups in this dataset. The number of players in each position group are as follows:**
+```{r plot_positon_group}
+summary(nfl_data_clean$position_group)
+
+ggplot(nfl_data_clean, aes(x = position_group)) +
+  geom_bar(fill = "orange") +
+  labs(title = "Number of players in each position", x="Position Group", y="No. of players")
+```
+
+## Height
+The height of each player measured in inches is recorded in the `height` variable. To study the distribution of height, we look at the summary statistics, histogram, boxplot and q-q plot.
+
+```{r plot_height}
+summary(nfl_data_clean$height)
+
+ggplot(nfl_data_clean, aes(x = height)) +
+  geom_histogram(binwidth = 1, fill = "lightcoral", color = "black") +
+  labs(title = "Distribution of Player Heights", x = "Height (inches)", y = "Frequency")
+
+ggplot(nfl_data_clean) +
+  geom_boxplot(aes(y=height), fill="lightcoral", color="black") +
+  labs(title = "Boxplot of Player Heights", y = "Player heights (inches)")
+
+qqnorm(nfl_data_clean$height, main = "Q-Q plot of player heights")
+qqline(nfl_data_clean$height, col="steelblue")
+```
+
+## Weight
+The weight of each player measured in pounds is recorded in the `weight` variable. To study the distribution of weight, we look at the summary statistics, histogram, boxplot and q-q plot.
+
+```{r plot_weight}
+summary(nfl_data_clean$weight)
+
+ggplot(nfl_data_clean, aes(x = weight)) +
+  geom_histogram(binwidth = 10, fill = "skyblue", color = "black") +
+  labs(title = "Distribution of Player Weights", x = "Weight (lbs)", y = "Frequency")
+
+ggplot(nfl_data_clean) +
+  geom_boxplot(aes(y=weight), fill="skyblue", color="black") +
+  labs(title = "Boxplot of Player Weights", y = "Player weights (lbs)")
+
+qqnorm(nfl_data_clean$weight, main = "Q-Q plot of player weights")
+qqline(nfl_data_clean$weight, col="steelblue")
+```
+
+## Years of experience
+The number of years each player has played in the NFL is recorded in the `years_of_experience` variable. The distribution of YOE is studied using summary statistics, histogram, boxplot and Q-Q plot.
+
+```{r plot_yoe}
+summary(nfl_data_clean$years_of_experience)
+
+ggplot(nfl_data_clean) +
+  geom_histogram(aes(x=years_of_experience), color="black", fill="lightgreen", binwidth = 1, show.legend = F) +
+  labs(title = "Histogram plot of years of experience for all players") +
+  labs(x = "Years of Experience", y="Number of players")
+
+ggplot(nfl_data_clean) +
+  geom_boxplot(aes(y=years_of_experience), fill="lightgreen", show.legend = F) +
+  labs(title = "Boxplot of years of experience for all players") +
+  labs(y = "Years of experience")
+
+qqnorm(nfl_data_clean$height, main = "Q-Q plot of Years of experience")
+qqline(nfl_data_clean$height, col="steelblue")
+```
+
+# Studying each variable by position group
+Now we study the distribution of weight, height and YOE with respect to the position group. Additionally, we also use ANOVA tests to determine the presence of a correlation between the variables of interest and position groups.\
+First, we group the dataset by position group and calculate the average weight, height, and YOE for each position group.
+
+```{r group_by_position}
+grouped_nfl_players <- group_by(nfl_data_clean, position_group)
+
+nfl_players_by_position <- summarize(grouped_nfl_players,average_height = mean(height),sd_height =sd(height), average_weight = mean(weight), sd_weight = sd(weight), average_years_active = mean(years_of_experience), sd_yoe = sd(years_of_experience))
+```
+
+Based on feedback during the presentation that ANOVA tests assume equality of standard deviation, we decided to include a summary of mean and SD for weight, height and YOE for each position group.\
+```{r summarize_groups}
+nfl_players_by_position
+```
+
+From the above summary table we can see that SD for height for most groups is close by. The weight SD varies for all position groups and is approximately equal for only a few groups. The SD of the YOE variable is also approximately equal for most groups but the QB and SPEC positions.\
+
+## Height
+
+```{r plot_height_pos_group}
+ggplot(nfl_players_by_position, aes(x = position_group, y = average_height)) +
+  geom_bar(stat = "identity", fill ="darkblue") +
+  labs(title = "Average Height of NFL Players by Position", x = "Position Group", y = "Height (inches)")
+
+my_colors <- c("red", "blue", "green", "purple", "orange", "pink", "cyan", "brown", "gray")
+
+ggplot(nfl_data_clean, aes(x = position_group, y = height)) +
+  geom_boxplot(fill=my_colors,show.legend = FALSE, outlier.color = "red", width = 0.5) +
+  scale_fill_manual(values = c(my_colors, "gray")) +  # Add a color for "Other"
+  labs(title = "Distribution of Height by Position Group",
+       x = "Position Group",
+       y = "Height (inches)") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 16, hjust = 0.5),  # Adjust title size and center it
+        axis.title.x = element_text(size = 14),               # Adjust x-axis label size
+        axis.title.y = element_text(size = 14),               # Adjust y-axis label size
+        axis.text.x = element_text(size = 12, angle = 45, hjust = 1))  # Rotate x-axis labels
+```
+
+**From the above plots, we see that a player's height tends to vary based on the position in which they play. To confirm this hypothesis, we conduct the ANOVA test for `height` vs `position_group`.**\
+*Null hypothesis: Average height for each position group is equal*\
+*Alternate hypothesis: Average height varies for each position group*\
+
+```{r anova_height_pos_group}
+anova_model_ht <- aov(height~position_group, nfl_data_clean)
+xkabledply(anova_model_ht, title="ANOVA test Height vs Position Group")
+```
+
+**The p-value from the ANOVA test is 0 which means that we reject the null hypothesis and accept the alternate. As expected, the distribution of player's height varies based on the position group.**\
+To check which position groups vary the most in mean height, we perform the post-hoc Tukey HSD test:\
+```{r tukeyHSD_height_pos_group}
+pos_height_tukey <- TukeyHSD(anova_model_ht)
+print(pos_height_tukey)
+```
+
+**From the post-hoc Tukey HSD test we see that the p-values for all pairs are less than 0.05 which means all the pairs of position groups have different mean heights**\
+
+## Weight
+
+```{r plot_weight_pos_group}
+ggplot(nfl_players_by_position, aes(x = position_group, y = average_weight)) +
+  geom_bar(stat = "identity", fill = "darkgreen") +
+  labs(title = "Average Weight of NFL Players by Position", x = "Position Group", y = "Weight (pounds)")
+
+ggplot(nfl_data_clean, aes(x = position_group, y = weight)) +
+  geom_boxplot(fill=my_colors,show.legend = FALSE, outlier.color = "red", width = 0.5) +
+  scale_fill_manual(values = c(my_colors, "gray")) +  # Add a color for "Other"
+  labs(title = "Distribution of Weight by Position Group",
+       x = "Position Group",
+       y = "Weight (pounds)") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 16, hjust = 0.5),  # Adjust title size and center it
+        axis.title.x = element_text(size = 14),               # Adjust x-axis label size
+        axis.title.y = element_text(size = 14),               # Adjust y-axis label size
+        axis.text.x = element_text(size = 12, angle = 45, hjust = 1))  # Rotate x-axis labels
+```
+
+**From the above plots, we see that a player's weight tends to vary based on the position in which they play. To confirm this hypothesis, we conduct the ANOVA test for `weight` vs `position_group`**\
+*Null hypothesis: Average weight for each position group is equal*\
+*Alternate hypothesis: Average weight varies for each position group*\
+
+```{r anova_weight_pos_group}
+anova_model_wt <- aov(weight~position_group, nfl_data_clean)
+xkabledply(anova_model_wt, title="ANOVA test Weight vs Position Group")
+```
+
+**The p-value from the ANOVA test is 0 which means that we reject the null hypothesis and accept the alternate. As expected, the distribution of player's weight varies based on the position group.**\
+To check which position groups vary the most in mean height, we perform the post-hoc Tukey HSD test:\
+```{r tukeyHSD_weight_pos_group}
+pos_weight_tukey <- TukeyHSD(anova_model_wt)
+print(pos_weight_tukey)
+```
+
+**From the post-hoc Tukey HSD test we see that the p-values for all pairs except "WR-DB" and "SPEC-RB" are less than 0.05 which means all other pairs of position groups have different mean weights**\
+
+## Years of Experience
+
+```{r plot_yoe_pos_group}
+ggplot(nfl_players_by_position, aes(x = position_group, y = average_years_active)) +
+  geom_bar(stat = "identity", fill = "lightgreen") +
+  labs(title = "Average Number of Years Active of NFL Players by Position", x = "Position Group", y = "Years Active")
+
+ggplot(nfl_data_clean) +
+  geom_boxplot(aes(x=position_group, y=years_of_experience, color=position_group), show.legend = F) +
+  labs(title = "Boxplot of years of experience for each position group") +
+  labs(x = "Position Group", y = "Years of experience")
+```
+
+**From the above plots, we see that a player's YOE tends to vary based on the position in which they play. To confirm this hypothesis, we conduct the ANOVA test for `years_of_experience` vs `position_group`**\
+*Null hypothesis: Average YOE for each position group is equal*\
+*Alternate hypothesis: Average YOE varies for each position group*\
+
+```{r anova_yoe_pos_group}
+pos_yoe <- aov(years_of_experience ~ position_group, nfl_data_clean)
+xkabledply(pos_yoe, title = "ANOVA test YOE vs Position Group")
+```
+
+**The p-value from the ANOVA test is 0 which means that we reject the null hypothesis and accept the alternate. As expected, the distribution of player's YOE varies based on the position group.**\
+To check which position groups vary the most in mean height, we perform the post-hoc Tukey HSD test:\
+```{r tukeyHSD_yoe_pos_group}
+pos_yoe_tukey <- TukeyHSD(pos_yoe)
+print(pos_yoe_tukey)
+```
+
+**From the post-hoc Tukey HSD test we see that the p-value for almost 50% of the pairs is greater than 0.05. Most of the pairs for which the p-value is less than 0.05 contain either QB, SPEC, or WR position groups. From the earlier bar chart, we can see that QB and SPEC have the highest mean YOE while WR has the lowest mean YOE. We can infer that QB, SPEC and WR positions are the groups causing a low p-value in the ANOVA test.**\
+
+# Conclusions
+From the statistical summaries, plots and hypothesis tests performed using R, we can determine that height, weight and years of experience vary significantly based on position groups.\
+Based on the EDA, we aim to perform one or more of the following modelling tasks for part 2:\
+1. Classifier model to classify a player into position group based on their height and weight.\
+2. Regression model to predict a player's YOE based on height, weight and position group.\
