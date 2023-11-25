@@ -1,5 +1,5 @@
 
-nfl_data_clean = read.csv("nfl_players.csv")
+nfl_data_clean = read.csv("dataset/nfl_players_clean.csv")
 
 # Convert height, weight, and years_of_experience to numeric 
 nfl_data_clean$height <- as.numeric(nfl_data_clean$height)
@@ -115,7 +115,7 @@ for (group in position_groups) {
 # Print the correlation results with years_of_experience
 print(correlation_results_years)
 
-
+library(ggplot2)
 
 # Plot the bar graph with pearson correlation height weight
 plot1 <- ggplot(correlation_results_years, aes(x = Position_Group, y = Pearson_Correlation_Height_Weight)) +
