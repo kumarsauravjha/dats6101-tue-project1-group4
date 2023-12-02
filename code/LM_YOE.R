@@ -48,3 +48,32 @@ lm_model <- lm(years_of_experience ~ position_group + height + weight, data = nf
 summary(lm_model)
 
 #to be continued....
+
+#splitting the dataset for training and testing
+# Set a seed for reproducibility
+set.seed(123)
+
+# Split the dataset into training (80%) and testing (20%) sets
+train_indices <- sample(1:nrow(nfl_clean), 0.8 * nrow(nfl_clean))
+train_data <- nfl_clean[train_indices, ]
+test_data <- nfl_clean[-train_indices, ]
+
+# Build the linear regression model on the training set
+lm_model_new <- lm(years_of_experience ~ position_group + height + weight, data = train_data)
+
+# Summary of the model
+summary(lm_model_new)
+
+# Make predictions on the test set
+predictions <- predict(lm_model_new, newdata = test_data)
+
+# Compare predictions with actual values
+comparison <- data.frame(Actual = test_data$years_of_experience, Predicted = predictions)
+print(head(comparison))
+
+# Calculate RMSE
+rmse <- sqrt(mean((predictions - test_data$years_of_experience)^2))
+
+# Print the RMSE
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+
