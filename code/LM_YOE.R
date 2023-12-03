@@ -1,7 +1,7 @@
 library(ggplot2)
 
 #read the cleaned dataset
-nfl_clean <- read.csv("nfl_players_clean.csv")
+nfl_clean <- read.csv("dataset/nfl_players_clean.csv")
 summary(nfl_clean)
 
 head(nfl_clean)
@@ -45,7 +45,7 @@ cat("Unique position groups:", unique_position, "\n")
 lm_model <- lm(years_of_experience ~ position_group + height + weight, data = nfl_clean)
 
 # Summary of the model
-summary(lm_model)
+print(summary(lm_model))
 
 #to be continued....
 
@@ -62,7 +62,7 @@ test_data <- nfl_clean[-train_indices, ]
 lm_model_new <- lm(years_of_experience ~ position_group + height + weight, data = train_data)
 
 # Summary of the model
-summary(lm_model_new)
+print(summary(lm_model_new))
 
 # Make predictions on the test set
 predictions <- predict(lm_model_new, newdata = test_data)
