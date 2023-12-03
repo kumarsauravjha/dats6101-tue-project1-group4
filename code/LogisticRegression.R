@@ -5,7 +5,7 @@ library(ramify)
 nfl_players_clean <- read.csv("dataset/nfl_players_clean.csv")
 
 nfl_players_clean$position_group <- factor(nfl_players_clean$position_group)
-fit_basic <- multinom(position_group ~ height + weight, data=nfl_players_clean)
+fit_basic <- multinom(position_group ~ height + weight + years_of_experience, data=nfl_players_clean)
 
 print(summary(fit_basic))
 print(exp(coef(fit_basic)))
