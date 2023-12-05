@@ -1,8 +1,8 @@
 library(caret)
+library (ggplot2)
 
 nfl_players_clean <- read.csv("dataset/nfl_players_clean.csv")
 
-nfl_players_clean <- subset(nfl_players_clean, nfl_players_clean$position_group != "SPEC")
 nfl_players_clean$position_group <- factor(nfl_players_clean$position_group)
 
 data <- nfl_players_clean[c("weight", "height", "position_group")]
@@ -23,6 +23,16 @@ knn_model <- train(position_group~., data=train_data, method="knn",
 
 best_knn <- knn3(position_group ~., data=train_data, k=knn_model$bestTune$k)
 
+train_preds <- predict(best_knn, train_data, type="class")
+cm1 <- confusionMatrix(train_preds, train_data$position_group)
+print(cm1)
+
 preds <- predict(best_knn, test_data, type="class")
 cm <- confusionMatrix(preds, test_data$position_group)
 print(cm)
+
+test_data_clean <- data[-train_index,]
+test_data_clean$pred_knn <- preds
+plt <- ggplot(data=test_data_clean) + geom_point(mapping = aes(x=height, y=weight, col=pred_knn)) + 
+  labs(title = "Height vs Weight by position group") + labs(x="Height (inches)", y="Weight (lbs)")
+print(plt)
