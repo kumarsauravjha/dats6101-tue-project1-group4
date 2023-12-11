@@ -287,7 +287,7 @@ After this, we built the Linear Model for Years of Experience using BMI and Posi
 set.seed(123)
 
 # Split the dataset into training (80%) and testing (20%) sets
-train_indices_ <- sample(1:nrow(nfl_clean), 0.8 * nrow(nfl_clean))
+train_indices <- sample(1:nrow(nfl_clean), 0.8 * nrow(nfl_clean))
 train_data_ <- nfl_clean[train_indices, ]
 test_data_ <- nfl_clean[-train_indices, ]
 
