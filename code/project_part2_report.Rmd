@@ -20,6 +20,7 @@ library(caret)
 library(nnet)
 library(corrplot)
 library(ramify)
+library(randomForest)
 
 #Setup knitter options
 knitr::opts_chunk$set(warning = F, message = F)
@@ -267,3 +268,108 @@ From the graph, we observe that classes with more observations and higher balanc
 The "SPEC" or Special position group in NFL refers to a group of players meant for playing very specific roles in set-piece situations such as kicker, punter etc. SPEC players do not have any characteristic desirable physical attributes since it varies by their specific role. Moreover, the height and weight distribution of players in the SPEC class overlaps with other classes. This fact, combined with the presence of very few observations from SPEC class in the dataset means that neither models performed well in identifying the SPEC class.
 
 # Predicting years of experience
+We've combined the height and weight of the player to calculate the BMI using the formula {BMI = [(weight in pounds)/(Height in inches ^2)] * 703 } in the Excel spreadsheet and added the column to the dataset. BMI is a better metric than using height and weight as individually they're highly correlated and using BMI improves the model. So after the addition, we wanted check the relationship of BMI with the Years of Experience. 
+
+```{r BMI_Plot}
+nfl_clean <- read.csv("../dataset/nfl_players_clean_bmi.csv")
+nfl_clean$position_group <- as.factor(nfl_clean$position_group)
+
+# Create a scatter plot with points colored by position_group
+ggplot(nfl_clean, aes(x = BMI, y = years_of_experience, color = position_group)) +
+  geom_point() +
+  ggtitle("Scatter Plot of BMI vs. Years of Experience") +
+  xlab("BMI") +
+  ylab("Years of Experience")
+```
+
+After this, we built the Linear Model for Years of Experience using BMI and Position Group. 
+```{r Linear_Model}
+set.seed(123)
+
+# Split the dataset into training (80%) and testing (20%) sets
+train_indices_ <- sample(1:nrow(nfl_clean), 0.8 * nrow(nfl_clean))
+train_data_ <- nfl_clean[train_indices, ]
+test_data_ <- nfl_clean[-train_indices, ]
+
+lm_model <- lm(years_of_experience ~ position_group + BMI, data = train_data_)
+
+summary(lm_model)
+```
+Here's the interpretation of the linear regression summary:
+
+1. Overall Model: The model is statistically significant (F-statistic: 1.03e+03, p-value < 2e-16), indicating that at least one predictor variable is significantly related to the response variable.
+
+2. Predictors: 
+- Years of experience is influenced by position groups (QB, SPEC), and BMI.
+- QB and SPEC positions positively impact years of experience, while BMI has a strong positive influence.
+
+3. Coefficients:
+- Intercept: -17.86
+- Notable positive effects: QB (0.61), SPEC (0.52), BMI (0.87).
+- Notable negative effect: RB (-0.14).
+
+4. Model Fit:
+- The model explains 62.7% of the variance (R-squared: 0.627).
+- Residual Standard Error (RMSE): 2.22, indicating good predictive accuracy.
+
+5. Significance:
+- Individual predictors have varying levels of significance (indicated by p-values).
+- BMI is highly significant (p-value < 2e-16), emphasizing its importance in predicting years of experience.
+
+**This model suggests that position groups, especially QB and SPEC, along with BMI, significantly influence years of experience in the given context.**
+```{r}
+# Make predictions on the test set
+predictions <- predict(lm_model, newdata = test_data_)
+
+# Calculate RMSE
+rmse <- sqrt(mean((predictions - test_data_$years_of_experience)^2))
+
+# Print the RMSE
+cat("Root Mean Squared Error (RMSE) - Linear Regression :", rmse, "\n")
+```
+Before concluding, in pursuit of modelling the dependent variable better, we wanted to try out one more model.So we employed the ensemble technique of Random Forest and re-modeled.
+```{r Random_Forest}
+# Train the Random Forest model
+rf_model <- randomForest(
+  years_of_experience ~ position_group + BMI,
+  data = train_data_,
+  ntree = 500,  # Number of trees in the forest
+       # Number of variables randomly sampled as candidates at each split
+  importance = TRUE
+)
+
+# Summary of the model
+print(rf_model)
+```
+Here's the interpretation of the random forest regression summary:
+
+1. Model Performance:
+- Mean of squared residuals: 4.77, indicating the average squared difference between predicted and actual values.
+-Percentage of variance explained: 63.7%, suggesting a good overall fit.
+
+2. Predictors: Similar to the linear regression model, position groups (especially QB and SPEC) and BMI are influential predictors of years of experience.
+
+3. Variable Importance: The model provides information about variable importance, which can help identify the most influential predictors.
+
+**In summary, the random forest regression model with 500 trees demonstrates good performance, explaining a significant portion of the variance in years of experience. The influential predictors include position groups (specifically QB and SPEC) and BMI, aligning with the findings from the linear regression model.**
+
+``` {r}
+# Make predictions on the test set
+predictions_rf <- predict(rf_model, newdata = test_data_)
+
+# Continue with the comparison and RMSE calculation as before
+# comparison_rf <- data.frame(Actual = test_data_$years_of_experience, Predicted = predictions_rf)
+# print(head(comparison_rf))
+
+# Calculate RMSE
+rmse_rf <- sqrt(mean((predictions_rf - test_data_$years_of_experience)^2))
+cat("Root Mean Squared Error (RMSE) - Random Forest:", rmse_rf, "\n")
+```
+Comparison:
+
+- Both models perform well in predicting years of experience, with the random forest model having a slightly lower RMSE (2.19 vs. 2.24).
+- The random forest model explains a slightly higher percentage of variance (63.7%) compared to the linear regression model (62.7%).
+- The random forest model's advantage may stem from its ability to capture non-linear relationships and interactions between variables due to its ensemble nature.
+
+**In summary, the random forest model shows a marginally better predictive performance compared to the linear regression model, as evidenced by a slightly lower RMSE and a slightly higher percentage of variance explained.**
+**In a nutshell, the model kind of peaked at explaining ~64 % variability since there are more factors at play in determining the Years of Experience than just the BMI and Position of Play since real life is complicated and career lifespan of a player takes on a more nuanced approach rather than just a simple linear relationship. **
