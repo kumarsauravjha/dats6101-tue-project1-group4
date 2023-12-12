@@ -268,8 +268,7 @@ From the graph, we observe that classes with more observations and higher balanc
 The "SPEC" or Special position group in NFL refers to a group of players meant for playing very specific roles in set-piece situations such as kicker, punter etc. SPEC players do not have any characteristic desirable physical attributes since it varies by their specific role. Moreover, the height and weight distribution of players in the SPEC class overlaps with other classes. This fact, combined with the presence of very few observations from SPEC class in the dataset means that neither models performed well in identifying the SPEC class.
 
 # Predicting years of experience
-We've combined the height and weight of the player to calculate the BMI using the formula {BMI = [(weight in pounds)/(Height in inches ^2)] * 703 } in the Excel spreadsheet and added the column to the dataset. BMI is a better metric than using height and weight as individually they're highly correlated and using BMI improves the model. So after the addition, we wanted check the relationship of BMI with the Years of Experience. 
-
+We did some feature engineering to combine the height and weight of the player to calculate the BMI using the formula {BMI = [(weight in pounds)/(Height in inches ^2)] * 703 } in the Excel spreadsheet and added the column to the dataset. BMI is a better metric than using height and weight as individually they're highly correlated and using BMI improves the model. So after the addition, we wanted check the relationship of BMI with the Years of Experience.
 ```{r BMI_Plot}
 nfl_clean <- read.csv("../dataset/nfl_players_clean_bmi.csv")
 nfl_clean$position_group <- as.factor(nfl_clean$position_group)
@@ -327,7 +326,7 @@ rmse <- sqrt(mean((predictions - test_data_$years_of_experience)^2))
 # Print the RMSE
 cat("Root Mean Squared Error (RMSE) - Linear Regression :", rmse, "\n")
 ```
-Before concluding, in pursuit of modelling the dependent variable better, we wanted to try out one more model.So we employed the ensemble technique of Random Forest and re-modeled.
+In pursuit of modelling the dependent variable better, we wanted to try out one more model.So we employed the ensemble technique of Random Forest and re-modeled.
 ```{r Random_Forest}
 # Train the Random Forest model
 rf_model <- randomForest(
@@ -365,6 +364,34 @@ predictions_rf <- predict(rf_model, newdata = test_data_)
 rmse_rf <- sqrt(mean((predictions_rf - test_data_$years_of_experience)^2))
 cat("Root Mean Squared Error (RMSE) - Random Forest:", rmse_rf, "\n")
 ```
+
+Before concluding, we tweaked the random forest model with different parameters, like below i.e. changing the number of trees.  
+```{r RF_2}
+# Train the Random Forest model
+rf_model2 <- randomForest(
+  years_of_experience ~ position_group + BMI,
+  data = train_data_,
+  ntree = 600,  # Number of trees in the forest
+       # Number of variables randomly sampled as candidates at each split
+  importance = TRUE
+)
+
+# Summary of the model
+print(rf_model2)
+
+# Make predictions on the test set
+predictions_rf2 <- predict(rf_model2, newdata = test_data_)
+
+# Continue with the comparison and RMSE calculation as before
+# comparison_rf <- data.frame(Actual = test_data_$years_of_experience, Predicted = predictions_rf)
+# print(head(comparison_rf))
+
+# Calculate RMSE
+rmse_rf2 <- sqrt(mean((predictions_rf2 - test_data_$years_of_experience)^2))
+cat("Root Mean Squared Error (RMSE) - Random Forest:", rmse_rf2, "\n")
+```
+But doing that didn't produce any significant difference as evident from the % variance explained and RMSE. 
+
 Comparison:
 
 - Both models perform well in predicting years of experience, with the random forest model having a slightly lower RMSE (2.19 vs. 2.24).
