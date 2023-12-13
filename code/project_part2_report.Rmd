@@ -21,6 +21,7 @@ library(nnet)
 library(corrplot)
 library(ramify)
 library(randomForest)
+library(patchwork)
 
 #Setup knitter options
 knitr::opts_chunk$set(warning = F, message = F)
@@ -93,36 +94,57 @@ corrplot.mixed(correlation_data_years,upper="color", lower="number", tl.col = "b
 
 ## Group-wise correlation of numeric variables
 As we saw in part 1, the distributions of `height`, `weight` and `years_of_experience` vary by position group. Hence we will study the correlation of these variables for each position group.\
-To make the process of calculating the correlation matrices and correlation plots faster, we define some functions.
-
-```{r define_functions}
-# Create a function to compute correlation matrix for height, weight, and years_of_experience
-compute_correlation_matrix <- function(group_data) {
-  cor_matrix <- cor(group_data[, c("height", "weight", "years_of_experience")])
-  return(cor_matrix)
-}
-
-# Function to plot correlation matrix
-plot_correlation_matrix <- function(cor_matrix, position_group) {
-  corrplot.mixed(cor_matrix, lower="number", upper="color", tl.col = "black", tl.srt = 45, mar = c(0, 0, 5, 0),
-           main = paste("Correlation Matrix for ", position_group))
-}
-```
 
 ```{r corr_pos_group}
-correlation_matrices <- by(
-  nfl_data_clean[, c("height", "weight", "years_of_experience")],
-  nfl_data_clean$position_group,
-  compute_correlation_matrix
-)
+# Get unique position groups
+position_groups <- unique(nfl_data_clean$position_group)
 
-correlation_list <- as.list(correlation_matrices)
+correlation_results <- data.frame(Position_Group = character(),
+                                  Pearson_Correlation_Height_Weight = numeric(),
+                                  Pearson_Correlation_Height_Years = numeric(),
+                                  Pearson_Correlation_Weight_Years = numeric(),
+                                  stringsAsFactors = FALSE)
 
-# Apply the plotting function to each correlation matrix
-mapply(plot_correlation_matrix, correlation_list, names(correlation_list))
+# Loop through each position group
+for (group in position_groups) {
+  # Subset data for the current position group
+  data_subset <- subset(nfl_data_clean, position_group == group)
+  
+  # Calculate Pearson correlation coefficients
+  correlation_height_weight <- cor(data_subset$height, data_subset$weight, method = "pearson")
+  correlation_height_years <- cor(data_subset$height, data_subset$years_of_experience, method = "pearson")
+  correlation_weight_years <- cor(data_subset$weight, data_subset$years_of_experience, method = "pearson")
+  
+  # Add results to the data frame
+  correlation_results <- rbind(correlation_results,
+                               data.frame(Position_Group = group,
+                                          Pearson_Correlation_Height_Weight = correlation_height_weight,
+                                          Pearson_Correlation_Height_Years = correlation_height_years,
+                                          Pearson_Correlation_Weight_Years = correlation_weight_years))
+}
+
+plot1 <- ggplot(correlation_results, aes(x = Position_Group, y = Pearson_Correlation_Height_Weight)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black", width = 0.7) +
+  labs(title = "Pearson Correlation Between Height and Weight by Position Group",
+       x = "Position Group", y = "Pearson Correlation Coefficient") + theme_minimal()
+
+plot2 <- ggplot(correlation_results, aes(x = Position_Group, y = Pearson_Correlation_Height_Years)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black", width = 0.7) +
+  labs(title = "Pearson Correlation Between Height and YOE by Position Group",
+       x = "Position Group", y = "Pearson Correlation Coefficient") + theme_minimal()
+
+plot3 <- ggplot(correlation_results, aes(x = Position_Group, y = Pearson_Correlation_Weight_Years)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black", width = 0.7) +
+  labs(title = "Pearson Correlation Between Weight and YOE by Position Group",
+       x = "Position Group", y = "Correlation Coefficient") + theme_minimal()
+
+plot1
+plot2
+plot3
+
 ```
 
-**From the above correlation plots, we observe that height and weight have moderate positive correlation for all position groups except DL where they are negatively correlated. We also see that YOE does not have much correlation with height but it is moderately correlated with weight for each position group.**\
+**From the above plots, we observe that height and weight have moderate positive correlation for all position groups except DL where they are negatively correlated. We also see that YOE does not have much correlation with height but it is moderately correlated with weight for each position group.**\
 Based on the results from these correlation plots, we move ahead with building and evaluating the models.
 
 # Classifying NFL players into position groups
@@ -138,11 +160,6 @@ fit_basic <- multinom(position_group ~ height + weight, data = nfl_data_clean)
 After fitting the model, lets take a look at the coefficients in the log-odds scale.
 ```{r fit_coeff, results='markup'}
 coef(fit_basic)
-```
-
-Applying the exponential function gives us the coefficients on the odds-ratio scale.
-```{r fit_coeff_exp, results='markup'}
-exp(coef(fit_basic))
 ```
 
 We see that the model is actually 8 different LR equations corresponding to 8 classes. The class "DB" is not present since that is considered as the base class and the other equations are calculated with respect to the base class. Each equation gives us the log-odds ratio of an observation belonging to the corresponding class.
@@ -173,14 +190,14 @@ To evaluate the overall accuracy and class-wise accuracy of the model, we constr
 
 ```{r conf_matrix_mlr}
 cm <- confusionMatrix(nfl_data_clean$position_group, nfl_data_clean$prediction)
-cm$table
+xkabledply(cm$table)
 ```
 
 From the confusion matrix, we can get the overall accuracy as : `r cm$overall['Accuracy']`.\
 However, since this is a multiclass problem, we look at the statistics for each class. We mainly focus on the balanced accuracy for each class which is the Arithmetic Mean of Sensitivity and Specificity. Balanced accuracy tells us how good the model is in predicting if an observation belongs inside or outside of a class.
 
 ```{r conf_matrix_byclass}
-cm$byClass[,c('Sensitivity', 'Specificity', 'Balanced Accuracy')]
+xkabledply(cm$byClass[,c('Sensitivity', 'Specificity', 'Balanced Accuracy')])
 ```
 
 We observe that most classes have a good balanced accuracy (> 0.7) while the classes with lower occurences like "QB", "WR" and "SPEC" do not have a very good balanced accuracy. The "SPEC" class is peculiar since the model does not classify any observations into it. We investigate this later in the paper.
@@ -226,7 +243,7 @@ best_knn <- knn3(position_group ~., data=train_data, k=knn_model$bestTune$k)
 train_preds <- predict(best_knn, train_data, type="class")
 cm1 <- confusionMatrix(train_preds, train_data$position_group)
 
-cm1$table
+xkabledply(cm1$table)
 ```
 
 We get an overall training accuracy of `r cm1$overall['Accuracy']`.\
@@ -238,13 +255,13 @@ Lets see how it performs on the test set.
 preds <- predict(best_knn, test_data, type="class")
 cm2 <- confusionMatrix(preds, test_data$position_group)
 
-cm2$table
+xkabledply(cm2$table)
 ```
 
 The test accuracy for this model is `r cm$overall['Accuracy']`.\
 Let us now look at the balanced accuracy for each class to determine how KNN performs for each class in the dataset.\
 ```{r knn_balanced_accuracy}
-cm2$byClass[,c('Sensitivity', 'Specificity', 'Balanced Accuracy')]
+xkabledply(cm2$byClass[,c('Sensitivity', 'Specificity', 'Balanced Accuracy')])
 ```
 
 We see that the balanced accuracy increases for most classes but it gets worse for classes with lesser observations in the dataset like "QB" and "WR". Again, the model does not seem to classify any observations into the "SPEC" class which could be due to very few observations in that class.
@@ -400,3 +417,16 @@ Comparison:
 
 **In summary, the random forest model shows a marginally better predictive performance compared to the linear regression model, as evidenced by a slightly lower RMSE and a slightly higher percentage of variance explained.**
 **In a nutshell, the model kind of peaked at explaining ~64 % variability since there are more factors at play in determining the Years of Experience than just the BMI and Position of Play since real life is complicated and career lifespan of a player takes on a more nuanced approach rather than just a simple linear relationship. **
+
+# Conclusion
+NFL is a complex sport with multiple position groups, each with varied functions and styles of play. Although height and weight are key attributes for most positions, other attributes such as speed, vertical jump height play a vital role for some positions. Skill positions such as quarterback and special groups have other unique characteristics.\
+NFL is a highly physical sport with the highest injury rate among sports. Players in positions such as offensive and defensive linemen, line backers, and defensive backs have a high chance of injury which ends up cutting their career. On the other hand, quarterbacks are a skill position who do not encounter much injury threats and have a longer career. However, like most other sports, having high muscle mass (which translates to a high BMI) substantially helps players avoid or recover from injury and prolong their careers.\
+Keeping these caveats in mind, we can draw the following conclusions from our project:
+
+1. As expected, we were able to find correlations between height, weight and position group of NFL players.
+2. We were able to exploit these correlations and build models to classify players into position groups.
+3. Classification models achieved a moderate overall accuracy and worked well on position groups with more players.
+4. We exploited the correlation between height, weight, position group and YOE to build regression models.
+5. The regression models performed decently with the given variables, indicating that YOE depends on more than just physical attributes.
+
+This work can be taken further to develop models with higher accuracy using more indicators such as speed, jump height, skill level, etc. This project is an example of how sports can leverage data to plan a player's development, manage their health, and identify areas of improvement.\
