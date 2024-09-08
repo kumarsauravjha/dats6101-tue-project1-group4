@@ -1,0 +1,56 @@
+---
+title: "NFL_EDA"
+output: html_document
+date: "2023-10-09"
+---
+
+```{r setup, include=FALSE}
+# Some of common RMD options (and the defaults) are: 
+# include=T, eval=T, echo=T, results='hide'/'asis'/'markup',..., collapse=F, warning=T, message=T, error=T, cache=T, fig.width=6, fig.height=4, fig.dim=c(6,4) #inches, fig.align='left'/'center','right', 
+knitr::opts_chunk$set(warning = F, message = F)
+# Can globally set option for number display format.
+options(scientific=T, digits = 3) 
+# options(scipen=9, digits = 3) 
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+#getwd()
+nfl <- read.csv("nfl_players_clean.csv")
+summary(nfl)
+```
+```{r}
+
+nfl$position <- as.factor(nfl$position)
+nfl$position_group <- as.factor(nfl$position_group)
+nfl$team_abbr <- as.factor(nfl$team_abbr)
+summary(nfl)
+```
+
+```{r}
+nfl1 <- subset(nfl, select=-X)
+# Create a box plot of height by position_group
+ggplot(nfl1, aes(x = position_group, y = height)) +
+  geom_boxplot() +
+  labs(title = "Distribution of Height by Position Group",
+       x = "Position Group",
+       y = "Height") +
+  theme_minimal()
+```
+
+```{r}
+library(ggplot2)
+ggplot(nfl1, aes(x=position_group, y = weight)) + geom_boxplot() + labs(title = "Distribution of Weight by Position Group",
+       x = "Position Group",
+       y = "Weight") + theme_minimal()
+```
+
+```{r}
+
+ggplot(nfl, aes(x=weight, y=height, color=position_group)) + geom_point() + labs(title='Scatter plot of height vs weight categorized by position group', x = 'weight of players', y='height of players') + theme_minimal()
+```

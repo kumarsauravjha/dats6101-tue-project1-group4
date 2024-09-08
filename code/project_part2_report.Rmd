@@ -1,0 +1,432 @@
+---
+title: "Project 2: Classifying NFL players and predicting their longevity"
+author: "Group 4, Section 11"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    code_folding: hide
+    number_sections: false
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+---
+
+```{r init, include=FALSE}
+#Import required libraries
+library(ezids)
+library(ggplot2)
+library(dplyr)
+library(caret)
+library(nnet)
+library(corrplot)
+library(ramify)
+library(randomForest)
+library(patchwork)
+
+#Setup knitter options
+knitr::opts_chunk$set(warning = F, message = F)
+options(scientific=T, digits = 3)
+```
+
+```{r import_data}
+nfl_data_clean <- read.csv("../dataset/nfl_players_clean.csv")
+nfl_data_clean$position_group <- as.factor(nfl_data_clean$position_group)
+```
+
+# Introduction
+## Part 1 Recap
+In Part 1 of this project, we introduced the NFL dataset which contained data about the physical attributes, position of play, and years of current and retired NFL players.\
+After cleaning the data, we were left with `r nrow(nfl_data_clean)` observations of `r ncol(nfl_data_clean)` variables.\
+The distribution of these players into the 9 position groups is shown below.
+
+```{r barplot_pos_group}
+ggplot(nfl_data_clean, aes(x = position_group)) +
+  geom_bar(fill = "orange") +
+  labs(title = "Number of players in each position", x="Position Group", y="No. of players")
+```
+
+After performing EDA on each variable, we performed ANOVA tests on our variables of interest: `height`, `weight` and `years_of_experience` in relation `position_group`.
+
+```{r anova_weight_pos_group}
+anova_model_wt <- aov(weight~position_group, nfl_data_clean)
+xkabledply(anova_model_wt, title="ANOVA test Weight vs Position Group")
+```
+
+p-value for this ANOVA test is 0,implying the `weight` is dependent on position groups.
+
+```{r anova_height_pos_group}
+anova_model_ht <- aov(height~position_group, nfl_data_clean)
+xkabledply(anova_model_ht, title="ANOVA test Height vs Position Group")
+```
+
+p-value for this ANOVA test is 0,implying the `height` is dependent on position groups.
+
+```{r anova_yoe_pos_group}
+pos_yoe <- aov(years_of_experience ~ position_group, nfl_data_clean)
+xkabledply(pos_yoe, title = "ANOVA test YOE vs Position Group")
+```
+
+p-value for this ANOVA test is 0,implying the `years_of_experience` is dependent on position groups.
+
+**After performing ANOVA tests, our suspicion that the height, weight and years of experience for an NFL player are dependent on their position group.**
+
+## Part 2 Agenda
+After performing EDA and Hypothesis tests to confirm that height, weight and YOE depend on a player's position group, we are now interested to model the following relationships:
+
+*   Classifying NFL players into different position groups based on their height and weight.\
+*   Predicting NFL player's YOE based on height, weight and position group.\
+
+To perform these modelling tasks, we follow these steps:
+
+1. Finding the correlations between the variables of interest: `height`, `weight`, `years_of_experience` and `position_group`.
+2. Building and evaluating classification models to classify players into `position_group` based on `height` and `weight`. Since this is a multiclass classification, we will use multinomial logistic regression and k-nearest neighbors classifiers.
+3. Building and evaluating regression models to predict the `years_of_experience` of a player based on `height`, `weight` and `position_group`. For this we will use linear regression and random forest regression models.
+
+# Finding Correlation among Variables
+
+## Correlating the numeric variables
+First, we find the correlation between the three numerical variables of interest: `height`, `weight`, and `years_of_experience`.
+
+```{r simple_correlation}
+correlation_data_years <- cor(nfl_data_clean[, c("height", "weight", "years_of_experience")])
+corrplot.mixed(correlation_data_years,upper="color", lower="number", tl.col = "black", tl.srt = 45, mar=c(0,0,5,0), main = "Correlation plot of numerical variables")
+```
+
+## Group-wise correlation of numeric variables
+As we saw in part 1, the distributions of `height`, `weight` and `years_of_experience` vary by position group. Hence we will study the correlation of these variables for each position group.\
+
+```{r corr_pos_group}
+# Get unique position groups
+position_groups <- unique(nfl_data_clean$position_group)
+
+correlation_results <- data.frame(Position_Group = character(),
+                                  Pearson_Correlation_Height_Weight = numeric(),
+                                  Pearson_Correlation_Height_Years = numeric(),
+                                  Pearson_Correlation_Weight_Years = numeric(),
+                                  stringsAsFactors = FALSE)
+
+# Loop through each position group
+for (group in position_groups) {
+  # Subset data for the current position group
+  data_subset <- subset(nfl_data_clean, position_group == group)
+  
+  # Calculate Pearson correlation coefficients
+  correlation_height_weight <- cor(data_subset$height, data_subset$weight, method = "pearson")
+  correlation_height_years <- cor(data_subset$height, data_subset$years_of_experience, method = "pearson")
+  correlation_weight_years <- cor(data_subset$weight, data_subset$years_of_experience, method = "pearson")
+  
+  # Add results to the data frame
+  correlation_results <- rbind(correlation_results,
+                               data.frame(Position_Group = group,
+                                          Pearson_Correlation_Height_Weight = correlation_height_weight,
+                                          Pearson_Correlation_Height_Years = correlation_height_years,
+                                          Pearson_Correlation_Weight_Years = correlation_weight_years))
+}
+
+plot1 <- ggplot(correlation_results, aes(x = Position_Group, y = Pearson_Correlation_Height_Weight)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black", width = 0.7) +
+  labs(title = "Pearson Correlation Between Height and Weight by Position Group",
+       x = "Position Group", y = "Pearson Correlation Coefficient") + theme_minimal()
+
+plot2 <- ggplot(correlation_results, aes(x = Position_Group, y = Pearson_Correlation_Height_Years)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black", width = 0.7) +
+  labs(title = "Pearson Correlation Between Height and YOE by Position Group",
+       x = "Position Group", y = "Pearson Correlation Coefficient") + theme_minimal()
+
+plot3 <- ggplot(correlation_results, aes(x = Position_Group, y = Pearson_Correlation_Weight_Years)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black", width = 0.7) +
+  labs(title = "Pearson Correlation Between Weight and YOE by Position Group",
+       x = "Position Group", y = "Correlation Coefficient") + theme_minimal()
+
+plot1
+plot2
+plot3
+
+```
+
+**From the above plots, we observe that height and weight have moderate positive correlation for all position groups except DL where they are negatively correlated. We also see that YOE does not have much correlation with height but it is moderately correlated with weight for each position group.**\
+Based on the results from these correlation plots, we move ahead with building and evaluating the models.
+
+# Classifying NFL players into position groups
+The first modelling task is to classify the NFL players in the dataset into position groups based on their height and weight distribution. For this task we employ multinomial logistic regression and k-nearest neighbors models and compare their results.
+
+## Multinomial LR
+Multinomial LR model is used when the target variable has multiple categories. In our case, the target variable `position_group` has 9 categories. The multinomial LR model predicts the log-odds ratio of an observation belonging to each class.
+
+```{r fit_multi_LR, results='hide'}
+fit_basic <- multinom(position_group ~ height + weight, data = nfl_data_clean)
+```
+
+After fitting the model, lets take a look at the coefficients in the log-odds scale.
+```{r fit_coeff, results='markup'}
+coef(fit_basic)
+```
+
+We see that the model is actually 8 different LR equations corresponding to 8 classes. The class "DB" is not present since that is considered as the base class and the other equations are calculated with respect to the base class. Each equation gives us the log-odds ratio of an observation belonging to the corresponding class.
+
+Next, we obtain the predictions for the dataset from the model. Each prediction is an array with 9 values where each value corresponds to the probability of the observation belonging to that class. We then use th `argmax()` function to get the index of the class with highest probability. After obtaining the prediction values, we map it back to the factor levels in `position_group`.
+
+```{r obtain_preds_mlr}
+pp <- fitted(fit_basic)
+prediction <- argmax(pp)
+
+prediction[prediction == 1] = "DB"
+prediction[prediction == 2] = "DL"
+prediction[prediction == 3] = "LB"
+prediction[prediction == 4] = "OL"
+prediction[prediction == 5] = "QB"
+prediction[prediction == 6] = "RB"
+prediction[prediction == 7] = "SPEC"
+prediction[prediction == 8] = "TE"
+prediction[prediction == 9] = "WR"
+
+nfl_data_clean$prediction <- factor(prediction, levels = c("DB", "DL", "LB", "OL", "QB", "RB", "SPEC", "TE", "WR"))
+print("Summary of predictions: ")
+summary(nfl_data_clean$prediction)
+```
+
+### MLR : Confusion Matrix and Model evaluation
+To evaluate the overall accuracy and class-wise accuracy of the model, we construct the confusion matrix.
+
+```{r conf_matrix_mlr}
+cm <- confusionMatrix(nfl_data_clean$position_group, nfl_data_clean$prediction)
+xkabledply(cm$table)
+```
+
+From the confusion matrix, we can get the overall accuracy as : `r cm$overall['Accuracy']`.\
+However, since this is a multiclass problem, we look at the statistics for each class. We mainly focus on the balanced accuracy for each class which is the Arithmetic Mean of Sensitivity and Specificity. Balanced accuracy tells us how good the model is in predicting if an observation belongs inside or outside of a class.
+
+```{r conf_matrix_byclass}
+xkabledply(cm$byClass[,c('Sensitivity', 'Specificity', 'Balanced Accuracy')])
+```
+
+We observe that most classes have a good balanced accuracy (> 0.7) while the classes with lower occurences like "QB", "WR" and "SPEC" do not have a very good balanced accuracy. The "SPEC" class is peculiar since the model does not classify any observations into it. We investigate this later in the paper.
+
+## K - nearest neighbors classifier
+The KNN Classifier model predicts the class of an observation based on the class of it's nearest `k` neighbors. `k` is a hyperparameter of this model and is used to set how many neighbors each observation should be compared with. The distance between data points is calculated for each of the feature columns. After determining the `k` nearest neighbors of an observation, the class of the observation is predicted based on the class to which majority of its neighbors belong.\
+In our case, we only use two features `height` and `weight` to determine the `position_group` of an observation. In the two feature case, it is easy to visualize KNN classifier as dividing up the feature space in `c` different regions where `c` is the number of classes.\
+
+First, we split the data into train and test sets in an 80:20 ratio.
+```{r train_test_split}
+data <- nfl_data_clean[c("weight", "height", "position_group")]
+
+train_index <- createDataPartition(data$position_group, times=1, p=0.8, list=F)
+
+train_data <- data[train_index,]
+test_data <- data[-train_index,]
+
+```
+
+There are `r nrow(train_data)` observations in the training set, and `r nrow(test_data)` observations in the test set.\
+Next, we normalize the data by centering it around the mean and scaling it by the standard deviation. We perform this operation on both test and train sets. However, we use the mean and standard deviation of only the training set.
+
+```{r scale_center}
+preProcValues <- preProcess(train_data, method=c("center", "scale"))
+train_data <- predict(preProcValues, train_data)
+test_data <- predict(preProcValues, test_data)
+```
+
+Centering and scaling the data ensures that both variables are distributed along a similar scale and it becomes easier to calculate distances. Otherwise, the variable on the higher scale will have more impact on the distances than the other. In our case, `weight` would have a higher impact on distances than `height`.\
+Now, we will build the model. First, we try out different values of `k` to determine the best one. Lower values of `k` increases the variance of the model and might have a tendency to overfit. Whereas higher values of `k` compromise on accuracy.\
+
+```{r knn_tuning}
+knn_model <- train(position_group~., data=train_data, method="knn",
+                    trControl=trainControl(method="cv"),
+                    tuneGrid=data.frame(k=c(20,40,50,100, 200, 250)))
+```
+
+After tuning the model, we find that the best value of `k` is `r knn_model$bestTune$k`. Next we build and train the model with this value of `k`.
+
+```{r build_train}
+best_knn <- knn3(position_group ~., data=train_data, k=knn_model$bestTune$k)
+
+train_preds <- predict(best_knn, train_data, type="class")
+cm1 <- confusionMatrix(train_preds, train_data$position_group)
+
+xkabledply(cm1$table)
+```
+
+We get an overall training accuracy of `r cm1$overall['Accuracy']`.\
+
+### KNN : Confusion Matrix and Model Evaluation
+Lets see how it performs on the test set.
+
+```{r test_knn}
+preds <- predict(best_knn, test_data, type="class")
+cm2 <- confusionMatrix(preds, test_data$position_group)
+
+xkabledply(cm2$table)
+```
+
+The test accuracy for this model is `r cm$overall['Accuracy']`.\
+Let us now look at the balanced accuracy for each class to determine how KNN performs for each class in the dataset.\
+```{r knn_balanced_accuracy}
+xkabledply(cm2$byClass[,c('Sensitivity', 'Specificity', 'Balanced Accuracy')])
+```
+
+We see that the balanced accuracy increases for most classes but it gets worse for classes with lesser observations in the dataset like "QB" and "WR". Again, the model does not seem to classify any observations into the "SPEC" class which could be due to very few observations in that class.
+
+## Classification model conclusions
+We can plot the predictions of the KNN model on the training class to better understand how the model divides the feature space into multiple region, each corresponding to a target class.
+
+```{r plot_knn}
+test_data_clean <- data[-train_index,]
+test_data_clean$pred_knn <- preds
+plt <- ggplot(data=test_data_clean) + geom_point(mapping = aes(x=height, y=weight, col=pred_knn)) + 
+  labs(title = "KNN model predictions") + labs(x="Height (inches)", y="Weight (lbs)")
+plt
+```
+
+From the graph, we observe that classes with more observations and higher balanced accuracy such as OL, DB and LB have been assigned well defined regions in the graph. On the other hand, classes with fewer observations such as QB and WR occupy smaller regions in the graph which are not well defined.\
+
+**Overall, we conclude that KNN is the better suited model for our use-case. It gave a higher overall accuracy and better values of balanced accuracy for most classes compared to the multinomial LR model. The KNN model is also more intuitive to understand since it is non-parametric and divided the feature space into regions for each class.**
+
+### Investigating the SPEC class
+The "SPEC" or Special position group in NFL refers to a group of players meant for playing very specific roles in set-piece situations such as kicker, punter etc. SPEC players do not have any characteristic desirable physical attributes since it varies by their specific role. Moreover, the height and weight distribution of players in the SPEC class overlaps with other classes. This fact, combined with the presence of very few observations from SPEC class in the dataset means that neither models performed well in identifying the SPEC class.
+
+# Predicting years of experience
+We did some feature engineering to combine the height and weight of the player to calculate the BMI using the formula {BMI = [(weight in pounds)/(Height in inches ^2)] * 703 } in the Excel spreadsheet and added the column to the dataset. BMI is a better metric than using height and weight as individually they're highly correlated and using BMI improves the model. So after the addition, we wanted check the relationship of BMI with the Years of Experience.
+```{r BMI_Plot}
+nfl_clean <- read.csv("../dataset/nfl_players_clean_bmi.csv")
+nfl_clean$position_group <- as.factor(nfl_clean$position_group)
+
+# Create a scatter plot with points colored by position_group
+ggplot(nfl_clean, aes(x = BMI, y = years_of_experience, color = position_group)) +
+  geom_point() +
+  ggtitle("Scatter Plot of BMI vs. Years of Experience") +
+  xlab("BMI") +
+  ylab("Years of Experience")
+```
+
+After this, we built the Linear Model for Years of Experience using BMI and Position Group. 
+```{r Linear_Model}
+set.seed(123)
+
+# Split the dataset into training (80%) and testing (20%) sets
+train_indices <- sample(1:nrow(nfl_clean), 0.8 * nrow(nfl_clean))
+train_data_ <- nfl_clean[train_indices, ]
+test_data_ <- nfl_clean[-train_indices, ]
+
+lm_model <- lm(years_of_experience ~ position_group + BMI, data = train_data_)
+
+summary(lm_model)
+```
+Here's the interpretation of the linear regression summary:
+
+1. Overall Model: The model is statistically significant (F-statistic: 1.03e+03, p-value < 2e-16), indicating that at least one predictor variable is significantly related to the response variable.
+
+2. Predictors: 
+- Years of experience is influenced by position groups (QB, SPEC), and BMI.
+- QB and SPEC positions positively impact years of experience, while BMI has a strong positive influence.
+
+3. Coefficients:
+- Intercept: -17.86
+- Notable positive effects: QB (0.61), SPEC (0.52), BMI (0.87).
+- Notable negative effect: RB (-0.14).
+
+4. Model Fit:
+- The model explains 62.7% of the variance (R-squared: 0.627).
+- Residual Standard Error (RMSE): 2.22, indicating good predictive accuracy.
+
+5. Significance:
+- Individual predictors have varying levels of significance (indicated by p-values).
+- BMI is highly significant (p-value < 2e-16), emphasizing its importance in predicting years of experience.
+
+**This model suggests that position groups, especially QB and SPEC, along with BMI, significantly influence years of experience in the given context.**
+```{r}
+# Make predictions on the test set
+predictions <- predict(lm_model, newdata = test_data_)
+
+# Calculate RMSE
+rmse <- sqrt(mean((predictions - test_data_$years_of_experience)^2))
+
+# Print the RMSE
+cat("Root Mean Squared Error (RMSE) - Linear Regression :", rmse, "\n")
+```
+In pursuit of modelling the dependent variable better, we wanted to try out one more model.So we employed the ensemble technique of Random Forest and re-modeled.
+```{r Random_Forest}
+# Train the Random Forest model
+rf_model <- randomForest(
+  years_of_experience ~ position_group + BMI,
+  data = train_data_,
+  ntree = 500,  # Number of trees in the forest
+       # Number of variables randomly sampled as candidates at each split
+  importance = TRUE
+)
+
+# Summary of the model
+print(rf_model)
+```
+Here's the interpretation of the random forest regression summary:
+
+1. Model Performance:
+- Mean of squared residuals: 4.77, indicating the average squared difference between predicted and actual values.
+-Percentage of variance explained: 63.7%, suggesting a good overall fit.
+
+2. Predictors: Similar to the linear regression model, position groups (especially QB and SPEC) and BMI are influential predictors of years of experience.
+
+3. Variable Importance: The model provides information about variable importance, which can help identify the most influential predictors.
+
+**In summary, the random forest regression model with 500 trees demonstrates good performance, explaining a significant portion of the variance in years of experience. The influential predictors include position groups (specifically QB and SPEC) and BMI, aligning with the findings from the linear regression model.**
+
+``` {r}
+# Make predictions on the test set
+predictions_rf <- predict(rf_model, newdata = test_data_)
+
+# Continue with the comparison and RMSE calculation as before
+# comparison_rf <- data.frame(Actual = test_data_$years_of_experience, Predicted = predictions_rf)
+# print(head(comparison_rf))
+
+# Calculate RMSE
+rmse_rf <- sqrt(mean((predictions_rf - test_data_$years_of_experience)^2))
+cat("Root Mean Squared Error (RMSE) - Random Forest:", rmse_rf, "\n")
+```
+
+Before concluding, we tweaked the random forest model with different parameters, like below i.e. changing the number of trees.  
+```{r RF_2}
+# Train the Random Forest model
+rf_model2 <- randomForest(
+  years_of_experience ~ position_group + BMI,
+  data = train_data_,
+  ntree = 600,  # Number of trees in the forest
+       # Number of variables randomly sampled as candidates at each split
+  importance = TRUE
+)
+
+# Summary of the model
+print(rf_model2)
+
+# Make predictions on the test set
+predictions_rf2 <- predict(rf_model2, newdata = test_data_)
+
+# Continue with the comparison and RMSE calculation as before
+# comparison_rf <- data.frame(Actual = test_data_$years_of_experience, Predicted = predictions_rf)
+# print(head(comparison_rf))
+
+# Calculate RMSE
+rmse_rf2 <- sqrt(mean((predictions_rf2 - test_data_$years_of_experience)^2))
+cat("Root Mean Squared Error (RMSE) - Random Forest:", rmse_rf2, "\n")
+```
+But doing that didn't produce any significant difference as evident from the % variance explained and RMSE. 
+
+Comparison:
+
+- Both models perform well in predicting years of experience, with the random forest model having a slightly lower RMSE (2.19 vs. 2.24).
+- The random forest model explains a slightly higher percentage of variance (63.7%) compared to the linear regression model (62.7%).
+- The random forest model's advantage may stem from its ability to capture non-linear relationships and interactions between variables due to its ensemble nature.
+
+**In summary, the random forest model shows a marginally better predictive performance compared to the linear regression model, as evidenced by a slightly lower RMSE and a slightly higher percentage of variance explained.**
+**In a nutshell, the model kind of peaked at explaining ~64 % variability since there are more factors at play in determining the Years of Experience than just the BMI and Position of Play since real life is complicated and career lifespan of a player takes on a more nuanced approach rather than just a simple linear relationship. **
+
+# Conclusion
+NFL is a complex sport with multiple position groups, each with varied functions and styles of play. Although height and weight are key attributes for most positions, other attributes such as speed, vertical jump height play a vital role for some positions. Skill positions such as quarterback and special groups have other unique characteristics.\
+NFL is a highly physical sport with the highest injury rate among sports. Players in positions such as offensive and defensive linemen, line backers, and defensive backs have a high chance of injury which ends up cutting their career. On the other hand, quarterbacks are a skill position who do not encounter much injury threats and have a longer career. However, like most other sports, having high muscle mass (which translates to a high BMI) substantially helps players avoid or recover from injury and prolong their careers.\
+Keeping these caveats in mind, we can draw the following conclusions from our project:
+
+1. As expected, we were able to find correlations between height, weight and position group of NFL players.
+2. We were able to exploit these correlations and build models to classify players into position groups.
+3. Classification models achieved a moderate overall accuracy and worked well on position groups with more players.
+4. We exploited the correlation between height, weight, position group and YOE to build regression models.
+5. The regression models performed decently with the given variables, indicating that YOE depends on more than just physical attributes.
+
+This work can be taken further to develop models with higher accuracy using more indicators such as speed, jump height, skill level, etc. This project is an example of how sports can leverage data to plan a player's development, manage their health, and identify areas of improvement.\

@@ -9,4 +9,4 @@ nfl_data$team_abbr = as.factor(nfl_data$team_abbr)
 nfl_data_clean = na.omit(nfl_data)
 nfl_data_clean = subset(nfl_data_clean, nfl_data_clean$entry_year >= 2000)
 
-write.csv(nfl_data_clean, "dataset/nfl_players_clean.csv")
+write.csv(nfl_data_clean, "dataset/nfl_players_clean.csv", row.names = F)
